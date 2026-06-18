@@ -12,6 +12,7 @@ import {
 import { validarRetirada } from './src/utils/validacoes';
 
 const API_URL = 'https://6a2b38bcb687a7d5cbc4f81a.mockapi.io/api/Materiais';
+const ESTOQUE_BAIXO_LIMITE = 10;
 
 export default function App() {
   const [nome, setNome] = useState('');
@@ -167,6 +168,8 @@ export default function App() {
     item.nome.toLowerCase().includes(busca.toLowerCase())
   );
 
+  const estaComEstoqueBaixo = (quantidadeAtual) => quantidadeAtual <= ESTOQUE_BAIXO_LIMITE;
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Almoxarifado - Enfermagem</Text>
@@ -234,6 +237,9 @@ export default function App() {
                   <View>
                     <Text style={styles.itemName}>{item.nome}</Text>
                     <Text style={styles.itemQty}>Qtd: {item.quantidade}</Text>
+                    {estaComEstoqueBaixo(item.quantidade) ? (
+                      <Text style={styles.lowStockText}>Estoque baixo</Text>
+                    ) : null}
                   </View>
                   <View style={styles.itemActions}>
                     <TouchableOpacity onPress={() => iniciarEdicao(item)} style={styles.actionButton}>
@@ -380,6 +386,12 @@ const styles = StyleSheet.create({
   itemQty: {
     fontSize: 13,
     color: '#5B6B85',
+  },
+  lowStockText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
   },
   emptyText: {
     color: '#5B6B85',
