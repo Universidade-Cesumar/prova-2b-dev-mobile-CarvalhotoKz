@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
+import { validarRetirada } from './src/utils/validacoes';
 
 const API_URL = 'https://6a2b38bcb687a7d5cbc4f81a.mockapi.io/api/Materiais';
 
@@ -16,6 +17,7 @@ export default function App() {
   const [nome, setNome] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [editingId, setEditingId] = useState(null);
+  const [retiradas, setRetiradas] = useState({});
   const [busca, setBusca] = useState('');
   const [materiais, setMateriais] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,13 @@ export default function App() {
     setQuantidade('');
   };
 
+  const atualizarRetirada = (id, valor) => {
+    setRetiradas((prev) => ({
+      ...prev,
+      [id]: valor,
+    }));
+  };
+
   const salvarEdicao = async () => {
     if (!editingId) return;
     if (!nome.trim() || !quantidade.trim()) return;
@@ -120,6 +129,37 @@ export default function App() {
     } catch (error) {
       // fallback: remover localmente mesmo em erro de rede
       setMateriais((prev) => prev.filter((m) => m.id !== id));
+    }
+  };
+
+  const baixarMaterial = async (item) => {
+    const quantidadeRetirada = Number(retiradas[item.id] ?? 0);
+    if (!validarRetirada(item.quantidade, quantidadeRetirada)) return;
+
+    const novaQuantidade = item.quantidade - quantidadeRetirada;
+    const atualizado = {
+      Nome: item.nome,
+      Quantidade: novaQuantidade,
+    };
+
+    try {
+      const response = await fetch(`${API_URL}/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(atualizado),
+      });
+      if (!response.ok) throw new Error('Falha ao baixar estoque');
+      const data = normalizarMaterial(await response.json());
+      setMateriais((prev) => prev.map((m) => (m.id === item.id ? data : m)));
+    } catch (error) {
+      setMateriais((prev) =>
+        prev.map((m) => (m.id === item.id ? { ...m, quantidade: novaQuantidade } : m))
+      );
+    } finally {
+      setRetiradas((prev) => ({
+        ...prev,
+        [item.id]: '',
+      }));
     }
   };
 
@@ -190,19 +230,38 @@ export default function App() {
             keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
             renderItem={({ item }) => (
               <View style={styles.itemCard}>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                <View style={styles.itemHeader}>
                   <View>
                     <Text style={styles.itemName}>{item.nome}</Text>
                     <Text style={styles.itemQty}>Qtd: {item.quantidade}</Text>
                   </View>
-                  <View style={{flexDirection: 'row', gap: 8}}>
-                    <TouchableOpacity onPress={() => iniciarEdicao(item)} style={{padding: 8}}>
-                      <Text style={{color: '#2F6FED'}}>Editar</Text>
+                  <View style={styles.itemActions}>
+                    <TouchableOpacity onPress={() => iniciarEdicao(item)} style={styles.actionButton}>
+                      <Text style={styles.actionEditText}>Editar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity testID={`btn-deletar-${item.id}`} onPress={() => deletarMaterial(item.id)} style={{padding: 8}}>
-                      <Text style={{color: '#D9534F'}}>Excluir</Text>
+                    <TouchableOpacity testID={`btn-excluir-${item.id}`} onPress={() => deletarMaterial(item.id)} style={styles.actionButton}>
+                      <Text style={styles.actionDeleteText}>Excluir</Text>
                     </TouchableOpacity>
                   </View>
+                </View>
+
+                <View style={styles.retiradaRow}>
+                  <TextInput
+                    testID="input-retirada"
+                    style={styles.retiradaInput}
+                    placeholder="Retirar"
+                    keyboardType="numeric"
+                    value={String(retiradas[item.id] ?? '')}
+                    onChangeText={(value) => atualizarRetirada(item.id, value)}
+                  />
+                  <TouchableOpacity
+                    testID="btn-baixar"
+                    style={styles.baixarButton}
+                    onPress={() => baixarMaterial(item)}
+                    disabled={!validarRetirada(item.quantidade, Number(retiradas[item.id] ?? 0))}
+                  >
+                    <Text style={styles.buttonText}>Baixar</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -272,6 +331,46 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EDF2F7',
     paddingVertical: 10,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    padding: 8,
+  },
+  actionEditText: {
+    color: '#2F6FED',
+  },
+  actionDeleteText: {
+    color: '#D9534F',
+  },
+  retiradaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  retiradaInput: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderColor: '#D8E1F0',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  baixarButton: {
+    backgroundColor: '#1E8E5A',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
   },
   itemName: {
     fontSize: 16,
