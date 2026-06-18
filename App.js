@@ -20,6 +20,7 @@ export default function App() {
   const [editingId, setEditingId] = useState(null);
   const [retiradas, setRetiradas] = useState({});
   const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
   const [materiais, setMateriais] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -164,13 +165,27 @@ export default function App() {
     }
   };
 
-  const materiaisFiltrados = materiais.filter((item) =>
-    item.nome.toLowerCase().includes(busca.toLowerCase())
-  );
-
   const estaComEstoqueBaixo = (quantidadeAtual) => quantidadeAtual <= ESTOQUE_BAIXO_LIMITE;
-  const totalQuantidade = materiaisFiltrados.reduce((total, item) => total + item.quantidade, 0);
-  const totalEstoqueBaixo = materiaisFiltrados.filter((item) => estaComEstoqueBaixo(item.quantidade)).length;
+  const materiaisVisiveis = materiais.filter((item) => {
+    const correspondeBusca = item.nome.toLowerCase().includes(busca.toLowerCase());
+
+    if (!correspondeBusca) {
+      return false;
+    }
+
+    if (filtroStatus === 'baixo') {
+      return estaComEstoqueBaixo(item.quantidade);
+    }
+
+    if (filtroStatus === 'normal') {
+      return !estaComEstoqueBaixo(item.quantidade);
+    }
+
+    return true;
+  });
+
+  const totalQuantidade = materiaisVisiveis.reduce((total, item) => total + item.quantidade, 0);
+  const totalEstoqueBaixo = materiaisVisiveis.filter((item) => estaComEstoqueBaixo(item.quantidade)).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -219,9 +234,30 @@ export default function App() {
         onChangeText={setBusca}
       />
 
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterButton, filtroStatus === 'todos' && styles.filterButtonActive]}
+          onPress={() => setFiltroStatus('todos')}
+        >
+          <Text style={[styles.filterText, filtroStatus === 'todos' && styles.filterTextActive]}>Todos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, filtroStatus === 'baixo' && styles.filterButtonActive]}
+          onPress={() => setFiltroStatus('baixo')}
+        >
+          <Text style={[styles.filterText, filtroStatus === 'baixo' && styles.filterTextActive]}>Baixo estoque</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, filtroStatus === 'normal' && styles.filterButtonActive]}
+          onPress={() => setFiltroStatus('normal')}
+        >
+          <Text style={[styles.filterText, filtroStatus === 'normal' && styles.filterTextActive]}>Normal</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.summaryRow}>
         <Text testID="total-itens" style={styles.summaryText}>
-          Total de itens: {materiaisFiltrados.length}
+          Total de itens: {materiaisVisiveis.length}
         </Text>
         <Text style={styles.summaryText}>Quantidade total: {totalQuantidade}</Text>
         <Text style={styles.summaryText}>Itens com estoque baixo: {totalEstoqueBaixo}</Text>
@@ -233,7 +269,7 @@ export default function App() {
         ) : (
           <FlatList
             testID="lista-materiais"
-            data={materiaisFiltrados}
+            data={materiaisVisiveis}
             keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
             renderItem={({ item }) => (
               <View style={styles.itemCard}>
@@ -330,6 +366,32 @@ const styles = StyleSheet.create({
   summaryText: {
     color: '#23395B',
     fontWeight: '600',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  filterButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D8E1F0',
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  filterButtonActive: {
+    backgroundColor: '#2F6FED',
+    borderColor: '#2F6FED',
+  },
+  filterText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5B6B85',
+  },
+  filterTextActive: {
+    color: '#FFF',
   },
   listBox: {
     flex: 1,
