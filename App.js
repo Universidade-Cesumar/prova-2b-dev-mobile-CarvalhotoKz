@@ -12,7 +12,7 @@ import {
 import { validarRetirada } from './src/utils/validacoes';
 
 const API_URL = 'https://6a2b38bcb687a7d5cbc4f81a.mockapi.io/api/Materiais';
-const ESTOQUE_BAIXO_LIMITE = 10;
+const ESTOQUE_BAIXO_LIMITE = 100;
 
 export default function App() {
   const [nome, setNome] = useState('');
