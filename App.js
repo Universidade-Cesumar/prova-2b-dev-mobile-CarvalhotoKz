@@ -169,6 +169,8 @@ export default function App() {
   );
 
   const estaComEstoqueBaixo = (quantidadeAtual) => quantidadeAtual <= ESTOQUE_BAIXO_LIMITE;
+  const totalQuantidade = materiaisFiltrados.reduce((total, item) => total + item.quantidade, 0);
+  const totalEstoqueBaixo = materiaisFiltrados.filter((item) => estaComEstoqueBaixo(item.quantidade)).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -221,6 +223,8 @@ export default function App() {
         <Text testID="total-itens" style={styles.summaryText}>
           Total de itens: {materiaisFiltrados.length}
         </Text>
+        <Text style={styles.summaryText}>Quantidade total: {totalQuantidade}</Text>
+        <Text style={styles.summaryText}>Itens com estoque baixo: {totalEstoqueBaixo}</Text>
       </View>
 
       <View testID="lista-materials" style={styles.listBox}>
