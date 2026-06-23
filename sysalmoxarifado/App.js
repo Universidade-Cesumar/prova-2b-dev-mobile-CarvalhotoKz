@@ -8,9 +8,11 @@ import {
   FlatList,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 
 const API_URL = 'https://6a2b38bcb687a7d5cbc4f81a.mockapi.io/api/Materiais';
+const ESTOQUE_BAIXO_LIMITE = 10;
 
 export default function App() {
   const [nome, setNome] = useState('');
@@ -19,6 +21,10 @@ export default function App() {
   const [busca, setBusca] = useState('');
   const [materiais, setMateriais] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const exibirAlertaRede = (acao) => {
+    Alert.alert('Erro de conexao', `Nao foi possivel ${acao}. Verifique sua internet e tente novamente.`);
+  };
 
   const normalizarMaterial = (item) => ({
     id: item.id ?? item._id ?? String(Date.now()),
@@ -35,6 +41,7 @@ export default function App() {
       setMateriais(Array.isArray(dados) ? dados.map(normalizarMaterial) : []);
     } catch (error) {
       setMateriais([]);
+      exibirAlertaRede('carregar os materiais');
     } finally {
       setLoading(false);
     }
@@ -69,6 +76,7 @@ export default function App() {
         { id: Date.now().toString(), ...novoMaterial },
         ...prev,
       ]);
+      exibirAlertaRede('cadastrar o material no servidor');
       setNome('');
       setQuantidade('');
     }
@@ -107,6 +115,7 @@ export default function App() {
       setMateriais((prev) => prev.map((m) => (m.id === editingId ? data : m)));
     } catch (error) {
       setMateriais((prev) => prev.map((m) => (m.id === editingId ? { id: editingId, nome: nome.trim(), quantidade: Number(quantidade) } : m)));
+      exibirAlertaRede('atualizar o material no servidor');
     } finally {
       cancelarEdicao();
     }
@@ -120,8 +129,11 @@ export default function App() {
     } catch (error) {
       // fallback: remover localmente mesmo em erro de rede
       setMateriais((prev) => prev.filter((m) => m.id !== id));
+      exibirAlertaRede('deletar o material no servidor');
     }
   };
+
+  const estaComEstoqueBaixo = (quantidadeAtual) => quantidadeAtual < ESTOQUE_BAIXO_LIMITE;
 
   const materiaisFiltrados = materiais.filter((item) =>
     item.nome.toLowerCase().includes(busca.toLowerCase())
@@ -189,11 +201,17 @@ export default function App() {
             data={materiaisFiltrados}
             keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
             renderItem={({ item }) => (
-              <View style={styles.itemCard}>
+              <View
+                style={[styles.itemCard, estaComEstoqueBaixo(item.quantidade) && styles.itemCardCritical]}
+                accessibilityLabel={estaComEstoqueBaixo(item.quantidade) ? 'estoque-critico' : undefined}
+              >
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
                   <View>
                     <Text style={styles.itemName}>{item.nome}</Text>
                     <Text style={styles.itemQty}>Qtd: {item.quantidade}</Text>
+                    {estaComEstoqueBaixo(item.quantidade) ? (
+                      <Text style={styles.lowStockText}>Estoque baixo</Text>
+                    ) : null}
                   </View>
                   <View style={{flexDirection: 'row', gap: 8}}>
                     <TouchableOpacity onPress={() => iniciarEdicao(item)} style={{padding: 8}}>
@@ -273,6 +291,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EDF2F7',
     paddingVertical: 10,
   },
+  itemCardCritical: {
+    backgroundColor: '#FFE5E5',
+    borderColor: '#E57373',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+  },
   itemName: {
     fontSize: 16,
     color: '#23395B',
@@ -281,6 +306,12 @@ const styles = StyleSheet.create({
   itemQty: {
     fontSize: 13,
     color: '#5B6B85',
+  },
+  lowStockText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
   },
   emptyText: {
     color: '#5B6B85',
